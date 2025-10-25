@@ -7,7 +7,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
  */
 
 // Canvas
-const canvas = document.querySelector('canvas.webgl')
+const canvas = document.querySelector('canvas.webgpu')
 
 // Scene
 const scene = new THREE.Scene()
@@ -15,7 +15,7 @@ const scene = new THREE.Scene()
  * Test mesh
  */
 // Geometry
-const geometry = new THREE.PlaneGeometry(1, 1, 32, 32)
+const geometry = new THREE.PlaneGeometry(1, 1, 1, 1)
 
 const count = geometry.attributes.position.count
 const randoms = new Float32Array(count)
@@ -33,8 +33,18 @@ const material = new MeshBasicNodeMaterial(
 
 // Mesh
 const mesh = new THREE.Mesh(geometry, material)
-mesh.scale.y = 2 / 3
-scene.add(mesh)
+
+// instancing
+let rows = 50
+let columns = 50
+let instances = rows * columns
+let size = 0.1
+const geo = new THREE.PlaneGeometry(size, size, 1, 1)
+
+
+
+const instanceMesh = new THREE.InstancedMesh(geo, material, instances)
+scene.add(instanceMesh)
 
 /**
  * Sizes
