@@ -1,27 +1,16 @@
 import * as THREE from 'three/webgpu'
+import { MeshBasicNodeMaterial } from 'three/webgpu'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
-import GUI from 'lil-gui'
-import testVertexShader from './shaders/test/vertex.glsl'
-import testFragmentShader from './shaders/test/fragment.glsl'
 
 /**
  * Base
  */
-// Debug
-const gui = new GUI()
 
 // Canvas
 const canvas = document.querySelector('canvas.webgl')
 
 // Scene
 const scene = new THREE.Scene()
-
-/**
- * Textures
- */
-const textureLoader = new THREE.TextureLoader()
-const flagTexture = textureLoader.load('/textures/flag-french.jpg')
-
 /**
  * Test mesh
  */
@@ -38,21 +27,9 @@ for(let i = 0; i < count; i++)
 
 geometry.setAttribute('aRandom', new THREE.BufferAttribute(randoms, 1))
 
-// Material
-const material = new THREE.ShaderMaterial({
-    vertexShader: testVertexShader,
-    fragmentShader: testFragmentShader,
-    uniforms:
-    {
-        uFrequency: { value: new THREE.Vector2(10, 5) },
-        uTime: { value: 0 },
-        uColor: { value: new THREE.Color('orange') },
-        uTexture: { value: flagTexture }
-    }
-})
-
-gui.add(material.uniforms.uFrequency.value, 'x').min(0).max(20).step(0.01).name('frequencyX')
-gui.add(material.uniforms.uFrequency.value, 'y').min(0).max(20).step(0.01).name('frequencyY')
+// Material using NodeMaterial
+const material = new MeshBasicNodeMaterial(
+{color: 0x00ff00})
 
 // Mesh
 const mesh = new THREE.Mesh(geometry, material)
@@ -103,6 +80,9 @@ const renderer = new THREE.WebGPURenderer({
 renderer.setSize(sizes.width, sizes.height)
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
 
+// Initialize WebGPU renderer
+await renderer.init()
+
 /**
  * Animate
  */
@@ -111,9 +91,6 @@ const clock = new THREE.Clock()
 const tick = () =>
 {
     const elapsedTime = clock.getElapsedTime()
-
-    // Update material
-    material.uniforms.uTime.value = elapsedTime
 
     // Update controls
     controls.update()
