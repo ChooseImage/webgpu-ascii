@@ -97,7 +97,7 @@ controls.enableDamping = true
 /**
  * Renderer
  */
-const renderer = new THREE.WebGLRenderer({
+const renderer = new THREE.WebGPURenderer({
     canvas: canvas
 })
 renderer.setSize(sizes.width, sizes.height)
