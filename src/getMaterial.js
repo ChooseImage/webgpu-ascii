@@ -1,7 +1,7 @@
 import * as THREE from 'three/webgpu'
 import { mx_noise_float, color, cross, dot, float, transformNormalToView, positionLocal, 
 sign, step, Fn, uniform, varying, vec2, vec3, vec4, Loop, uv, texture, attribute, pow, 
-mix} from 'three/tsl';
+mix, floor} from 'three/tsl';
 import me from './me.jpeg'
 
 
@@ -30,9 +30,11 @@ export default function getMaterial({ asciiTexture, length }) {
 
     const asciiCode = Fn(() => {
         const textureColor = texture(uTexture, attribute('aPixelUV'))
-        const brightness = pow(textureColor.r, 0.9)
-        const asciiUV = vec2(uv().x.div(length), uv().y)
-
+        const brightness = pow(textureColor.r, 3)
+        const asciiUV = vec2(
+            uv().x.div(length).add(floor(brightness.mul(length)).div(length)), 
+            uv().y
+        )
 
         const asciiCode = texture(asciiTexture, asciiUV)
         let finalColor = uColor1
