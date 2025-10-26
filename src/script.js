@@ -13,6 +13,7 @@ export default class Sketch {
             document.body.appendChild(warning)
             return
         }
+
         
         // Canvas
         this.container = document.querySelector('canvas.webgpu')
@@ -26,9 +27,37 @@ export default class Sketch {
         
         // Clock
         this.clock = new THREE.Clock()
+
+        // this.createASCIITexture()
         
         // Initialize
         this.init()
+    }
+
+    createASCIITexture() {
+        let dict = "`.-':_,^=;><+!rc*/z?sLTv)J7(|Fi{C}fI31tlu[neoZ5Yxjya]2ESwqkP6h9d4VpOGbUAKXHm8RD#$Bg0MNWQ%&@"
+        this.length = dict.length
+        let canvas = document.createElement('canvas')
+        let ctx = canvas.getContext('2d')
+        // document.body.appendChild(canvas)
+        canvas.style.cssText = 'position: fixed; top: 0; left: 0; z-index: 1000; border: 2px solid red;'
+
+        canvas.width = this.length * 64
+        canvas.height = 64
+
+        ctx.fillStyle = 'black'
+        ctx.fillRect(0, 0, canvas.width, canvas.height)
+        ctx.font = 'bold 40px Menlo'
+        ctx.fillStyle = 'white'
+        ctx.textAlign = 'center'
+        
+        for(let i = 0; i < this.length; i++) {
+            ctx.fillText(dict[i], i * 64 + 32, 45)
+        }
+
+        let asciiTexture = new THREE.Texture(canvas)
+        asciiTexture.needsUpdate = true
+        return asciiTexture
     }
     
     async init() {
@@ -91,7 +120,10 @@ export default class Sketch {
             color: 0x000000,
             wireframe: true
         })
-        this.material = getMaterial()
+        this.material = getMaterial({
+            asciiTexture: this.createASCIITexture(),
+            length: this.length
+        })
         
         // Instancing parameters
         let rows = 50
