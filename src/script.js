@@ -1,115 +1,153 @@
 import * as THREE from 'three/webgpu'
 import { MeshBasicNodeMaterial } from 'three/webgpu'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
+import getMaterial from './getMaterial'
 
-/**
- * Base
- */
+export default class Sketch {
+    constructor() {
+        // Check WebGPU support
+        if (!navigator.gpu) {
+            const warning = document.createElement('div')
+            warning.style.cssText = 'position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #ff6b6b; color: white; padding: 20px; border-radius: 8px; font-family: Arial; z-index: 1000;'
+            warning.innerHTML = '<h2>WebGPU Not Supported</h2><p>Your browser does not support WebGPU. Please use Chrome 113+ or Edge 113+.</p>'
+            document.body.appendChild(warning)
+            return
+        }
+        
+        // Canvas
+        this.container = document.querySelector('canvas.webgpu')
+        
+        // Scene
+        this.scene = new THREE.Scene()
+        
+        // Sizes
+        this.width = window.innerWidth
+        this.height = window.innerHeight
+        
+        // Clock
+        this.clock = new THREE.Clock()
+        
+        // Initialize
+        this.init()
+    }
+    
+    async init() {
+        this.setupCamera()
+        await this.setupRenderer()
+        this.addObjects()
+        this.setupControls()
+        this.setupResize()
+        this.render()
+    }
+    
+    setupCamera() {
+        this.camera = new THREE.PerspectiveCamera(
+            75,
+            this.width / this.height,
+            0.1,
+            100
+        )
+        this.camera.position.set(0, 0, 3.8)
+        this.scene.add(this.camera)
+    }
+    
+    async setupRenderer() {
+        this.renderer = new THREE.WebGPURenderer({
+            canvas: this.container
+        })
+        this.renderer.setSize(this.width, this.height)
+        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+        
+        // Initialize WebGPU renderer
+        await this.renderer.init()
+    }
+    
+    setupControls() {
+        this.controls = new OrbitControls(this.camera, this.container)
+        this.controls.enableDamping = true
+    }
+    
+    setupResize() {
+        window.addEventListener('resize', this.resize.bind(this))
+    }
+    
+    resize() {
+        // Update sizes
+        this.width = window.innerWidth
+        this.height = window.innerHeight
+        
+        // Update camera
+        this.camera.aspect = this.width / this.height
+        this.camera.updateProjectionMatrix()
+        
+        // Update renderer
+        this.renderer.setSize(this.width, this.height)
+        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+    }
+    
+    addObjects() {
+        // Material
+        this.material = new MeshBasicNodeMaterial({
+            color: 0x000000,
+            wireframe: true
+        })
+        this.material = getMaterial()
+        
+        // Instancing parameters
+        let rows = 50
+        let columns = 50
+        let instances = rows * columns
+        let size = 0.1
+        
+        // Geometry
+        this.geometry = new THREE.PlaneGeometry(size, size, 1, 1)
 
-// Canvas
-const canvas = document.querySelector('canvas.webgpu')
+        this.positions = new Float32Array(instances * 3)
+        this.colors = new Float32Array(instances * 3)
+        let uv = new Float32Array(instances * 2)
+        this.instancedMesh = new THREE.InstancedMesh(this.geometry, this.material, instances)
 
-// Scene
-const scene = new THREE.Scene()
-/**
- * Test mesh
- */
-// Geometry
-const geometry = new THREE.PlaneGeometry(1, 1, 1, 1)
+        let index = 0
+        for(let i = 0; i < rows; i++) {
+            for(let j = 0; j < columns; j++) {
+                let index = (i * columns) + j
+                uv[index * 2] = i / (rows - 1)
+                uv[index * 2 + 1] = j / (columns - 1)
+                this.positions[index * 3] = i * size - size * (rows - 1)/2
+                this.positions[index * 3 + 1] = j * size - size * (columns - 1)/2
+                this.positions[index * 3 + 2] = 0
+                let m = new THREE.Matrix4()
+                m.setPosition(this.positions[index * 3], this.positions[index * 3 + 1], this.positions[index * 3 + 2])
+                this.instancedMesh.setMatrixAt(index, m)
+                index++
+            }
+        }
+        this.instancedMesh.instanceMatrix.needsUpdate = true
+        this.geometry.setAttribute('aPixelUV', new THREE.InstancedBufferAttribute(uv, 2))
+        
+        const count = this.geometry.attributes.position.count
+        const randoms = new Float32Array(count)
+        
+        for(let i = 0; i < count; i++) {
+            randoms[i] = Math.random()
+        }
 
-const count = geometry.attributes.position.count
-const randoms = new Float32Array(count)
-
-for(let i = 0; i < count; i++)
-{
-    randoms[i] = Math.random()
+        this.scene.add(this.instancedMesh)
+    }
+    
+    render() {
+        const elapsedTime = this.clock.getElapsedTime()
+        
+        // Update controls
+        this.controls.update()
+        
+        // Render
+        this.renderer.render(this.scene, this.camera)
+        
+        // Call render again on the next frame
+        window.requestAnimationFrame(this.render.bind(this))
+    }
 }
 
-geometry.setAttribute('aRandom', new THREE.BufferAttribute(randoms, 1))
-
-// Material using NodeMaterial
-const material = new MeshBasicNodeMaterial(
-{color: 0x00ff00})
-
-// Mesh
-const mesh = new THREE.Mesh(geometry, material)
-
-// instancing
-let rows = 50
-let columns = 50
-let instances = rows * columns
-let size = 0.1
-const geo = new THREE.PlaneGeometry(size, size, 1, 1)
-
-
-
-const instanceMesh = new THREE.InstancedMesh(geo, material, instances)
-scene.add(instanceMesh)
-
-/**
- * Sizes
- */
-const sizes = {
-    width: window.innerWidth,
-    height: window.innerHeight
-}
-
-window.addEventListener('resize', () =>
-{
-    // Update sizes
-    sizes.width = window.innerWidth
-    sizes.height = window.innerHeight
-
-    // Update camera
-    camera.aspect = sizes.width / sizes.height
-    camera.updateProjectionMatrix()
-
-    // Update renderer
-    renderer.setSize(sizes.width, sizes.height)
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
-})
-
-/**
- * Camera
- */
-// Base camera
-const camera = new THREE.PerspectiveCamera(75, sizes.width / sizes.height, 0.1, 100)
-camera.position.set(0.25, - 0.25, 1)
-scene.add(camera)
-
-// Controls
-const controls = new OrbitControls(camera, canvas)
-controls.enableDamping = true
-
-/**
- * Renderer
- */
-const renderer = new THREE.WebGPURenderer({
-    canvas: canvas
-})
-renderer.setSize(sizes.width, sizes.height)
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
-
-// Initialize WebGPU renderer
-await renderer.init()
-
-/**
- * Animate
- */
-const clock = new THREE.Clock()
-
-const tick = () =>
-{
-    const elapsedTime = clock.getElapsedTime()
-
-    // Update controls
-    controls.update()
-
-    // Render
-    renderer.render(scene, camera)
-
-    // Call tick again on the next frame
-    window.requestAnimationFrame(tick)
-}
-
-tick()
+// Initialize the sketch
+new Sketch()
