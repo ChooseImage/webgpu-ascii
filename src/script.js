@@ -14,6 +14,14 @@ export default class Sketch {
             return
         }
 
+        // Parameters
+        this.params = {
+            brightnessPower: 1.2,
+            randomNoise: 0.02,
+            palette: ['#8c1dff', '#f223ff', '#ff2976', '#ff901f', '#ffd318'],
+            columns: 40,
+            rows: 40
+        }
         
         // Canvas
         this.container = document.querySelector('canvas.webgpu')
@@ -75,6 +83,7 @@ export default class Sketch {
         this.setupControls()
         this.setupResize()
         this.setupPlayPauseControl()
+        this.createGUI()
         this.render()
     }
     
@@ -128,25 +137,7 @@ export default class Sketch {
     }
     
     createAudioToggle() {
-        this.audioButton = document.createElement('div')
-        this.audioButton.style.cssText = 'position: fixed; bottom: 20px; right: 20px; background: rgba(0,0,0,0.7); color: white; padding: 15px 20px; border-radius: 50px; font-family: Arial; z-index: 1000; cursor: pointer; user-select: none; transition: background 0.3s;'
-        this.audioButton.innerHTML = '🔊 Audio On'
-        document.body.appendChild(this.audioButton)
-        
-        // Hover effect
-        this.audioButton.addEventListener('mouseenter', () => {
-            this.audioButton.style.background = 'rgba(0,0,0,0.9)'
-        })
-        this.audioButton.addEventListener('mouseleave', () => {
-            this.audioButton.style.background = 'rgba(0,0,0,0.7)'
-        })
-        
-        // Toggle audio on click
-        this.audioButton.addEventListener('click', (e) => {
-            e.stopPropagation() // Prevent triggering play/pause
-            this.video.muted = !this.video.muted
-            this.audioButton.innerHTML = this.video.muted ? '🔇 Audio Off' : '🔊 Audio On'
-        })
+        // Audio toggle will be part of the main GUI now
     }
     
     setupPlayPauseControl() {
@@ -231,15 +222,14 @@ export default class Sketch {
         this.material = getMaterial({
             asciiTexture: this.createASCIITexture(),
             length: this.length,
-            videoTexture: this.videoTexture
+            videoTexture: this.videoTexture,
+            params: this.params
         })
         
         // Instancing parameters - match video aspect ratio
-        // Keep height fixed at 50 rows, adjust width based on aspect ratio
         let aspectRatio = this.videoAspectRatio || 1
-        let baseResolution = 40
-        let rows = baseResolution
-        let columns = Math.round(baseResolution * aspectRatio)
+        let rows = this.params.rows
+        let columns = Math.round(this.params.columns * aspectRatio)
         let instances = rows * columns
         let size = 0.1
         
@@ -279,6 +269,115 @@ export default class Sketch {
         }
 
         this.scene.add(this.instancedMesh)
+    }
+    
+    createGUI() {
+        const gui = document.createElement('div')
+        gui.className = 'brutalist-gui'
+        gui.innerHTML = `
+            <div class="gui-header">CONTROLS</div>
+            
+            <div class="gui-section">
+                <label class="gui-label">AUDIO</label>
+                <button class="gui-button" id="audioToggle">ON</button>
+            </div>
+            
+            <div class="gui-section">
+                <label class="gui-label">BRIGHTNESS_PWR</label>
+                <input type="range" class="gui-slider" id="brightnessPower" min="0.5" max="3" step="0.1" value="${this.params.brightnessPower}">
+                <span class="gui-value" id="brightnessPowerValue">${this.params.brightnessPower}</span>
+            </div>
+            
+            <div class="gui-section">
+                <label class="gui-label">RANDOM_NOISE</label>
+                <input type="range" class="gui-slider" id="randomNoise" min="0" max="0.1" step="0.001" value="${this.params.randomNoise}">
+                <span class="gui-value" id="randomNoiseValue">${this.params.randomNoise}</span>
+            </div>
+            
+            <div class="gui-section">
+                <label class="gui-label">PALETTE</label>
+                <div class="color-grid">
+                    ${this.params.palette.map((color, i) => `
+                        <input type="color" class="gui-color" id="color${i}" value="${color}">
+                    `).join('')}
+                </div>
+            </div>
+            
+            <div class="gui-section">
+                <label class="gui-label">COLUMNS</label>
+                <input type="range" class="gui-slider" id="columns" min="10" max="100" step="1" value="${this.params.columns}">
+                <span class="gui-value" id="columnsValue">${this.params.columns}</span>
+            </div>
+            
+            <div class="gui-section">
+                <label class="gui-label">ROWS</label>
+                <input type="range" class="gui-slider" id="rows" min="10" max="100" step="1" value="${this.params.rows}">
+                <span class="gui-value" id="rowsValue">${this.params.rows}</span>
+            </div>
+        `
+        document.body.appendChild(gui)
+        
+        // Audio toggle
+        const audioToggle = document.getElementById('audioToggle')
+        audioToggle.addEventListener('click', (e) => {
+            e.stopPropagation()
+            this.video.muted = !this.video.muted
+            audioToggle.textContent = this.video.muted ? 'OFF' : 'ON'
+        })
+        
+        // Brightness power
+        const brightnessPower = document.getElementById('brightnessPower')
+        const brightnessPowerValue = document.getElementById('brightnessPowerValue')
+        brightnessPower.addEventListener('input', (e) => {
+            this.params.brightnessPower = parseFloat(e.target.value)
+            brightnessPowerValue.textContent = this.params.brightnessPower.toFixed(2)
+            this.material.uniforms.uBrightnessPower.value = this.params.brightnessPower
+        })
+        
+        // Random noise
+        const randomNoise = document.getElementById('randomNoise')
+        const randomNoiseValue = document.getElementById('randomNoiseValue')
+        randomNoise.addEventListener('input', (e) => {
+            this.params.randomNoise = parseFloat(e.target.value)
+            randomNoiseValue.textContent = this.params.randomNoise.toFixed(3)
+            this.material.uniforms.uRandomNoise.value = this.params.randomNoise
+        })
+        
+        // Color palette
+        this.params.palette.forEach((color, i) => {
+            const colorInput = document.getElementById(`color${i}`)
+            colorInput.addEventListener('input', (e) => {
+                this.params.palette[i] = e.target.value
+                this.material.uniforms[`uColor${i + 1}`].value.set(e.target.value)
+            })
+        })
+        
+        // Columns and rows with debounce
+        let resolutionTimeout
+        const updateResolution = () => {
+            clearTimeout(resolutionTimeout)
+            resolutionTimeout = setTimeout(() => {
+                this.scene.remove(this.instancedMesh)
+                this.geometry.dispose()
+                this.addObjects()
+            }, 300)
+        }
+        
+        const columns = document.getElementById('columns')
+        const columnsValue = document.getElementById('columnsValue')
+        columns.addEventListener('input', (e) => {
+            this.params.columns = parseInt(e.target.value)
+            columnsValue.textContent = this.params.columns
+            updateResolution()
+        })
+        
+        const rows = document.getElementById('rows')
+        const rowsValue = document.getElementById('rowsValue')
+        rows.addEventListener('input', (e) => {
+            this.params.rows = parseInt(e.target.value)
+            rowsValue.textContent = this.params.rows
+            updateResolution()
+        })
     }
     
     render() {

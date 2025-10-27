@@ -10,7 +10,7 @@ let pallete = [
     '#ffd318'
 ]
 
-export default function getMaterial({ asciiTexture, length, videoTexture }) {
+export default function getMaterial({ asciiTexture, length, videoTexture, params }) {
     let uTexture = videoTexture;
 
 
@@ -18,16 +18,18 @@ export default function getMaterial({ asciiTexture, length, videoTexture }) {
         wireframe: true,
     });
 
-    const uColor1 = uniform(color(pallete[0]))
-    const uColor2 = uniform(color(pallete[1]))
-    const uColor3 = uniform(color(pallete[2]))
-    const uColor4 = uniform(color(pallete[3]))
-    const uColor5 = uniform(color(pallete[4]))
+    const uColor1 = uniform(color(params.palette[0]))
+    const uColor2 = uniform(color(params.palette[1]))
+    const uColor3 = uniform(color(params.palette[2]))
+    const uColor4 = uniform(color(params.palette[3]))
+    const uColor5 = uniform(color(params.palette[4]))
+    const uBrightnessPower = uniform(params.brightnessPower)
+    const uRandomNoise = uniform(params.randomNoise)
 
 
     const asciiCode = Fn(() => {
         const textureColor = texture(uTexture, attribute('aPixelUV'))
-        const brightness = pow(textureColor.r, 1.2).add(attribute('aRandom').x.mul(0.02))
+        const brightness = pow(textureColor.r, uBrightnessPower).add(attribute('aRandom').x.mul(uRandomNoise))
         const asciiUV = vec2(
             uv().x.div(length).add(floor(brightness.mul(length)).div(length)), 
             uv().y
@@ -45,6 +47,17 @@ export default function getMaterial({ asciiTexture, length, videoTexture }) {
     })
 
     material.colorNode = asciiCode()
+
+    // Store uniforms for external updates
+    material.uniforms = {
+        uColor1,
+        uColor2,
+        uColor3,
+        uColor4,
+        uColor5,
+        uBrightnessPower,
+        uRandomNoise
+    }
 
     return material
 }
