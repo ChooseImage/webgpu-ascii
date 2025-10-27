@@ -3,6 +3,7 @@ import { mx_noise_float, color, cross, dot, float, transformNormalToView, positi
 sign, step, Fn, uniform, varying, vec2, vec3, vec4, Loop, uv, texture, attribute, pow, 
 mix, floor} from 'three/tsl';
 import me from './me.jpeg'
+import myguy from './myguy.jpg'
 
 
 let pallete = [
@@ -14,7 +15,7 @@ let pallete = [
 ]
 
 export default function getMaterial({ asciiTexture, length }) {
-    let uTexture = new THREE.TextureLoader().load(me);
+    let uTexture = new THREE.TextureLoader().load(myguy);
 
 
     let material = new THREE.NodeMaterial({

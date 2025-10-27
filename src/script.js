@@ -139,7 +139,6 @@ export default class Sketch {
         let uv = new Float32Array(instances * 2)
         this.instancedMesh = new THREE.InstancedMesh(this.geometry, this.material, instances)
 
-        let index = 0
         for(let i = 0; i < rows; i++) {
             for(let j = 0; j < columns; j++) {
                 let index = (i * columns) + j
