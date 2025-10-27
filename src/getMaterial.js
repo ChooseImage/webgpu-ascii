@@ -2,11 +2,6 @@ import * as THREE from 'three/webgpu'
 import { mx_noise_float, color, cross, dot, float, transformNormalToView, positionLocal, 
 sign, step, Fn, uniform, varying, vec2, vec3, vec4, Loop, uv, texture, attribute, pow, 
 mix, floor, mul} from 'three/tsl';
-import me from './me.jpeg'
-import myguy from './myguy.jpg'
-import bacon from './bacon.jpg'
-
-
 let pallete = [
     '#8c1dff',
     '#f223ff',
@@ -15,8 +10,8 @@ let pallete = [
     '#ffd318'
 ]
 
-export default function getMaterial({ asciiTexture, length }) {
-    let uTexture = new THREE.TextureLoader().load(bacon);
+export default function getMaterial({ asciiTexture, length, videoTexture }) {
+    let uTexture = videoTexture;
 
 
     let material = new THREE.NodeMaterial({

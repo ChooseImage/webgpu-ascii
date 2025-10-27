@@ -70,10 +70,36 @@ export default class Sketch {
     async init() {
         this.setupCamera()
         await this.setupRenderer()
+        this.setupVideo()
         this.addObjects()
         this.setupControls()
         this.setupResize()
         this.render()
+    }
+    
+    setupVideo() {
+        // Create video element
+        this.video = document.createElement('video')
+        this.video.src = 'https://static-gstudio.gliacloud.com/10903/files/9ac212f31135ab34d23e2852b25e34476164a67c.mp4'
+        this.video.crossOrigin = 'anonymous'
+        this.video.loop = true
+        this.video.muted = true
+        this.video.playsInline = true
+        
+        // Create video texture
+        this.videoTexture = new THREE.VideoTexture(this.video)
+        this.videoTexture.minFilter = THREE.LinearFilter
+        this.videoTexture.magFilter = THREE.LinearFilter
+        this.videoTexture.format = THREE.RGBAFormat
+        
+        // Start playing the video
+        this.video.play().catch(err => {
+            console.log('Video autoplay failed, click to start:', err)
+            // Add click listener to start video if autoplay fails
+            document.addEventListener('click', () => {
+                this.video.play()
+            }, { once: true })
+        })
     }
     
     setupCamera() {
@@ -130,7 +156,8 @@ export default class Sketch {
         })
         this.material = getMaterial({
             asciiTexture: this.createASCIITexture(),
-            length: this.length
+            length: this.length,
+            videoTexture: this.videoTexture
         })
         
         // Instancing parameters
