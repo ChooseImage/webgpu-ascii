@@ -299,8 +299,12 @@ export default class Sketch {
         document.body.appendChild(fileInput)
         
         gui.innerHTML = `
-            <div class="gui-header">CONTROLS</div>
+            <div class="gui-header">
+                <span>CONTROLS</span>
+                <span class="gui-collapse-btn">▼</span>
+            </div>
             
+            <div class="gui-content">
             <div class="gui-section">
                 <label class="gui-label">AUDIO</label>
                 <button class="gui-button" id="audioToggle">ON</button>
@@ -347,8 +351,16 @@ export default class Sketch {
                 <input type="range" class="gui-slider" id="rows" min="10" max="100" step="1" value="${this.params.rows}">
                 <span class="gui-value" id="rowsValue">${this.params.rows}</span>
             </div>
+            </div>
         `
         document.body.appendChild(gui)
+        
+        // Collapse/expand functionality
+        const guiHeader = gui.querySelector('.gui-header')
+        guiHeader.addEventListener('click', (e) => {
+            e.stopPropagation()
+            gui.classList.toggle('gui-collapsed')
+        })
         
         // Audio toggle
         const audioToggle = document.getElementById('audioToggle')
