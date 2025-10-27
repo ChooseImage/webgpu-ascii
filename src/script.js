@@ -144,8 +144,8 @@ export default class Sketch {
         let hasStarted = false
         
         document.body.addEventListener('click', (e) => {
-            // Ignore clicks on the audio button
-            if (e.target === this.audioButton) return
+            // Ignore clicks on the GUI panel
+            if (e.target.closest('.brutalist-gui')) return
             
             if (!hasStarted) {
                 // First click - start playing
