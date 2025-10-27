@@ -1,9 +1,10 @@
 import * as THREE from 'three/webgpu'
 import { mx_noise_float, color, cross, dot, float, transformNormalToView, positionLocal, 
 sign, step, Fn, uniform, varying, vec2, vec3, vec4, Loop, uv, texture, attribute, pow, 
-mix, floor} from 'three/tsl';
+mix, floor, mul} from 'three/tsl';
 import me from './me.jpeg'
 import myguy from './myguy.jpg'
+import bacon from './bacon.jpg'
 
 
 let pallete = [
@@ -15,7 +16,7 @@ let pallete = [
 ]
 
 export default function getMaterial({ asciiTexture, length }) {
-    let uTexture = new THREE.TextureLoader().load(myguy);
+    let uTexture = new THREE.TextureLoader().load(bacon);
 
 
     let material = new THREE.NodeMaterial({
@@ -31,7 +32,7 @@ export default function getMaterial({ asciiTexture, length }) {
 
     const asciiCode = Fn(() => {
         const textureColor = texture(uTexture, attribute('aPixelUV'))
-        const brightness = pow(textureColor.r, 3)
+        const brightness = pow(textureColor.r, 2.2).add(attribute('aRandom').x.mul(0.02))
         const asciiUV = vec2(
             uv().x.div(length).add(floor(brightness.mul(length)).div(length)), 
             uv().y
@@ -44,7 +45,7 @@ export default function getMaterial({ asciiTexture, length }) {
         finalColor = mix(finalColor, uColor4, step(0.6, brightness))
         finalColor = mix(finalColor, uColor5, step(0.8, brightness))
 
-        return asciiCode
+        return asciiCode.mul(finalColor)
         //return vec4(attribute('aPixelUV').x, attribute('aPixelUV').y, 0.0, 1.0)
     })
 

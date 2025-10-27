@@ -137,12 +137,14 @@ export default class Sketch {
         this.positions = new Float32Array(instances * 3)
         this.colors = new Float32Array(instances * 3)
         let uv = new Float32Array(instances * 2)
+        let random = new Float32Array(instances)
         this.instancedMesh = new THREE.InstancedMesh(this.geometry, this.material, instances)
 
         for(let i = 0; i < rows; i++) {
             for(let j = 0; j < columns; j++) {
                 let index = (i * columns) + j
                 uv[index * 2] = i / (rows - 1)
+                random[index] = Math.random() 
                 uv[index * 2 + 1] = j / (columns - 1)
                 this.positions[index * 3] = i * size - size * (rows - 1)/2
                 this.positions[index * 3 + 1] = j * size - size * (columns - 1)/2
@@ -155,6 +157,7 @@ export default class Sketch {
         }
         this.instancedMesh.instanceMatrix.needsUpdate = true
         this.geometry.setAttribute('aPixelUV', new THREE.InstancedBufferAttribute(uv, 2))
+        this.geometry.setAttribute('aRandom', new THREE.InstancedBufferAttribute(random, 1))
         
         const count = this.geometry.attributes.position.count
         const randoms = new Float32Array(count)
