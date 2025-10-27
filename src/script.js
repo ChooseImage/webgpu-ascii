@@ -53,8 +53,8 @@ export default class Sketch {
         
         for(let i = 0; i < this.length; i++) {
             if(i>50){
-                for(let j = 0; j < 6; j++) {
-                    ctx.filter = `blur(${j*1}px)`
+                for(let j = 0; j < 7; j++) {
+                    ctx.filter = `blur(${j*1.2}px)`
                     ctx.fillText(dict[i], i * 64 + 32, 46)
                 }
             }
@@ -177,9 +177,6 @@ export default class Sketch {
         let rows = baseResolution
         let columns = Math.round(baseResolution * aspectRatio)
         let instances = rows * columns
-        console.log('this.videoAspectRatio:', this.videoAspectRatio)
-        console.log('aspectRatio:', aspectRatio)
-        console.log(`Instances: ${instances} (${rows} rows x ${columns} columns)`)
         let size = 0.1
         
         // Geometry
