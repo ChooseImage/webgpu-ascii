@@ -74,6 +74,7 @@ export default class Sketch {
         this.addObjects()
         this.setupControls()
         this.setupResize()
+        this.setupPlayPauseControl()
         this.render()
     }
     
@@ -83,8 +84,9 @@ export default class Sketch {
             this.video = document.createElement('video')
             this.video.src = new URL('./2u.mp4', import.meta.url).href
             this.video.loop = true
-            this.video.muted = false
+            this.video.muted = false // Audio on by default
             this.video.playsInline = true
+            // No autoplay - video starts paused
             
             // Create video texture
             this.videoTexture = new THREE.VideoTexture(this.video)
@@ -101,25 +103,75 @@ export default class Sketch {
                 resolve()
             })
             
-            // Try to start playing the video with sound
-            this.video.play().catch(err => {
-                console.log('Video autoplay with sound failed, click anywhere to start with audio:', err)
-                // Create a visual prompt for user interaction
-                const prompt = document.createElement('div')
-                prompt.style.cssText = 'position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.8); color: white; padding: 20px; border-radius: 8px; font-family: Arial; z-index: 1000; cursor: pointer;'
-                prompt.innerHTML = '<h3>Click to start video with audio</h3>'
-                document.body.appendChild(prompt)
-                
-                // Add click listener to start video with audio
-                const startVideo = () => {
-                    this.video.play().then(() => {
-                        prompt.remove()
-                    }).catch(e => console.error('Failed to play video:', e))
+            // Create click-to-play prompt
+            this.createPlayPrompt()
+            
+            // Create audio toggle button
+            this.createAudioToggle()
+        })
+    }
+    
+    createPlayPrompt() {
+        this.playPrompt = document.createElement('div')
+        this.playPrompt.style.cssText = 'position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.8); color: white; padding: 30px 40px; border-radius: 12px; font-family: Arial; z-index: 1000; cursor: pointer; font-size: 24px; transition: background 0.3s;'
+        this.playPrompt.innerHTML = '▶ Click to Play'
+        document.body.appendChild(this.playPrompt)
+        
+        // Hover effect
+        this.playPrompt.addEventListener('mouseenter', () => {
+            this.playPrompt.style.background = 'rgba(0,0,0,0.95)'
+        })
+        this.playPrompt.addEventListener('mouseleave', () => {
+            this.playPrompt.style.background = 'rgba(0,0,0,0.8)'
+        })
+    }
+    
+    createAudioToggle() {
+        this.audioButton = document.createElement('div')
+        this.audioButton.style.cssText = 'position: fixed; bottom: 20px; right: 20px; background: rgba(0,0,0,0.7); color: white; padding: 15px 20px; border-radius: 50px; font-family: Arial; z-index: 1000; cursor: pointer; user-select: none; transition: background 0.3s;'
+        this.audioButton.innerHTML = '🔊 Audio On'
+        document.body.appendChild(this.audioButton)
+        
+        // Hover effect
+        this.audioButton.addEventListener('mouseenter', () => {
+            this.audioButton.style.background = 'rgba(0,0,0,0.9)'
+        })
+        this.audioButton.addEventListener('mouseleave', () => {
+            this.audioButton.style.background = 'rgba(0,0,0,0.7)'
+        })
+        
+        // Toggle audio on click
+        this.audioButton.addEventListener('click', (e) => {
+            e.stopPropagation() // Prevent triggering play/pause
+            this.video.muted = !this.video.muted
+            this.audioButton.innerHTML = this.video.muted ? '🔇 Audio Off' : '🔊 Audio On'
+        })
+    }
+    
+    setupPlayPauseControl() {
+        let hasStarted = false
+        
+        document.body.addEventListener('click', (e) => {
+            // Ignore clicks on the audio button
+            if (e.target === this.audioButton) return
+            
+            if (!hasStarted) {
+                // First click - start playing
+                this.video.play().then(() => {
+                    this.playPrompt.remove()
+                    hasStarted = true
+                    console.log('Video playing with audio')
+                }).catch(err => {
+                    console.error('Failed to play video:', err)
+                })
+            } else {
+                // Subsequent clicks - toggle play/pause
+                if (this.video.paused) {
+                    this.video.play()
+                } else {
+                    this.video.pause()
                 }
-                
-                prompt.addEventListener('click', startVideo)
-                document.addEventListener('click', startVideo, { once: true })
-            })
+            }
         })
     }
     
@@ -165,7 +217,7 @@ export default class Sketch {
         this.camera.updateProjectionMatrix()
         
         // Update renderer
-        this.renderer.setSiz(this.width, this.height)
+        this.renderer.setSize(this.width, this.height)
         this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
     }
     
