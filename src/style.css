@@ -23,10 +23,10 @@ body
     position: fixed;
     top: 20px;
     right: 20px;
-    background: rgba(0, 0, 0, 0.3);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.4);
     padding: 0;
     font-family: 'Courier New', monospace;
     color: #fff;
@@ -37,7 +37,7 @@ body
 }
 
 .gui-header {
-    background: rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.1);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
     color: #fff;
@@ -52,6 +52,12 @@ body
     align-items: center;
     cursor: pointer;
     user-select: none;
+    transition: border-radius 0.3s ease;
+}
+
+.gui-collapsed .gui-header {
+    border-radius: 16px;
+    border-bottom: none;
 }
 
 .gui-header:hover {
@@ -176,7 +182,7 @@ body
 .gui-color {
     width: 100%;
     height: 30px;
-    border: 1px solid rgba(255, 255, 255, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.7);
     border-radius: 6px;
     cursor: pointer;
     background: none;
