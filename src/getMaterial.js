@@ -32,7 +32,7 @@ export default function getMaterial({ asciiTexture, length }) {
 
     const asciiCode = Fn(() => {
         const textureColor = texture(uTexture, attribute('aPixelUV'))
-        const brightness = pow(textureColor.r, 2.2).add(attribute('aRandom').x.mul(0.02))
+        const brightness = pow(textureColor.r, 1.5).add(attribute('aRandom').x.mul(0.02))
         const asciiUV = vec2(
             uv().x.div(length).add(floor(brightness.mul(length)).div(length)), 
             uv().y

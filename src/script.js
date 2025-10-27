@@ -52,7 +52,14 @@ export default class Sketch {
         ctx.textAlign = 'center'
         
         for(let i = 0; i < this.length; i++) {
-            ctx.fillText(dict[i], i * 64 + 32, 45)
+            if(i>50){
+                for(let j = 0; j < 6; j++) {
+                    ctx.filter = `blur(${j*1}px)`
+                    ctx.fillText(dict[i], i * 64 + 32, 46)
+                }
+            }
+            ctx.filter = 'none'
+            ctx.fillText(dict[i], i * 64 + 32, 46)
         }
 
         let asciiTexture = new THREE.Texture(canvas)
@@ -85,6 +92,7 @@ export default class Sketch {
             canvas: this.container
         })
         this.renderer.setSize(this.width, this.height)
+        this.renderer.setClearColor(0x000000, 1)
         this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
         
         // Initialize WebGPU renderer
