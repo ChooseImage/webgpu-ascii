@@ -70,7 +70,7 @@ export default class Sketch {
     async init() {
         this.setupCamera()
         await this.setupRenderer()
-        this.setupVideo()
+        await this.setupVideo()
         this.addObjects()
         this.setupControls()
         this.setupResize()
@@ -78,27 +78,37 @@ export default class Sketch {
     }
     
     setupVideo() {
-        // Create video element
-        this.video = document.createElement('video')
-        this.video.src = 'https://static-gstudio.gliacloud.com/10903/files/9ac212f31135ab34d23e2852b25e34476164a67c.mp4'
-        this.video.crossOrigin = 'anonymous'
-        this.video.loop = true
-        this.video.muted = true
-        this.video.playsInline = true
-        
-        // Create video texture
-        this.videoTexture = new THREE.VideoTexture(this.video)
-        this.videoTexture.minFilter = THREE.LinearFilter
-        this.videoTexture.magFilter = THREE.LinearFilter
-        this.videoTexture.format = THREE.RGBAFormat
-        
-        // Start playing the video
-        this.video.play().catch(err => {
-            console.log('Video autoplay failed, click to start:', err)
-            // Add click listener to start video if autoplay fails
-            document.addEventListener('click', () => {
-                this.video.play()
-            }, { once: true })
+        return new Promise((resolve) => {
+            // Create video element
+            this.video = document.createElement('video')
+            this.video.src = new URL('./2u.mp4', import.meta.url).href
+            this.video.loop = true
+            this.video.muted = true
+            this.video.playsInline = true
+            
+            // Create video texture
+            this.videoTexture = new THREE.VideoTexture(this.video)
+            this.videoTexture.minFilter = THREE.LinearFilter
+            this.videoTexture.magFilter = THREE.LinearFilter
+            this.videoTexture.format = THREE.RGBAFormat
+            
+            // Store video dimensions once loaded
+            this.video.addEventListener('loadedmetadata', () => {
+                this.videoWidth = this.video.videoWidth
+                this.videoHeight = this.video.videoHeight
+                this.videoAspectRatio = this.videoWidth / this.videoHeight
+                console.log(`Video dimensions: ${this.videoWidth}x${this.videoHeight}, aspect ratio: ${this.videoAspectRatio}`)
+                resolve()
+            })
+            
+            // Start playing the video
+            this.video.play().catch(err => {
+                console.log('Video autoplay failed, click to start:', err)
+                // Add click listener to start video if autoplay fails
+                document.addEventListener('click', () => {
+                    this.video.play()
+                }, { once: true })
+            })
         })
     }
     
@@ -144,7 +154,7 @@ export default class Sketch {
         this.camera.updateProjectionMatrix()
         
         // Update renderer
-        this.renderer.setSize(this.width, this.height)
+        this.renderer.setSiz(this.width, this.height)
         this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
     }
     
@@ -160,10 +170,16 @@ export default class Sketch {
             videoTexture: this.videoTexture
         })
         
-        // Instancing parameters
-        let rows = 50
-        let columns = 50
+        // Instancing parameters - match video aspect ratio
+        // Keep height fixed at 50 rows, adjust width based on aspect ratio
+        let aspectRatio = this.videoAspectRatio || 1
+        let baseResolution = 50
+        let rows = baseResolution
+        let columns = Math.round(baseResolution * aspectRatio)
         let instances = rows * columns
+        console.log('this.videoAspectRatio:', this.videoAspectRatio)
+        console.log('aspectRatio:', aspectRatio)
+        console.log(`Instances: ${instances} (${rows} rows x ${columns} columns)`)
         let size = 0.1
         
         // Geometry
@@ -175,14 +191,14 @@ export default class Sketch {
         let random = new Float32Array(instances)
         this.instancedMesh = new THREE.InstancedMesh(this.geometry, this.material, instances)
 
-        for(let i = 0; i < rows; i++) {
-            for(let j = 0; j < columns; j++) {
-                let index = (i * columns) + j
-                uv[index * 2] = i / (rows - 1)
+        for(let i = 0; i < columns; i++) {
+            for(let j = 0; j < rows; j++) {
+                let index = (i * rows) + j
+                uv[index * 2] = i / (columns - 1)
                 random[index] = Math.random() 
-                uv[index * 2 + 1] = j / (columns - 1)
-                this.positions[index * 3] = i * size - size * (rows - 1)/2
-                this.positions[index * 3 + 1] = j * size - size * (columns - 1)/2
+                uv[index * 2 + 1] = j / (rows - 1)
+                this.positions[index * 3] = i * size - size * (columns - 1)/2
+                this.positions[index * 3 + 1] = j * size - size * (rows - 1)/2
                 this.positions[index * 3 + 2] = 0
                 let m = new THREE.Matrix4()
                 m.setPosition(this.positions[index * 3], this.positions[index * 3 + 1], this.positions[index * 3 + 2])
