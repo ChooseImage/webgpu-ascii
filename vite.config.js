@@ -14,7 +14,8 @@ export default {
     {
         outDir: '../dist', // Output in the dist/ folder
         emptyOutDir: true, // Empty the folder first
-        sourcemap: true // Add sourcemap
+        sourcemap: true, // Add sourcemap
+        target: 'es2022' // Support top-level await and modern features
     },
     plugins:
     [
