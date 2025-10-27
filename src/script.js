@@ -460,10 +460,9 @@ export default class Sketch {
         // Create object URL
         this.currentMediaUrl = URL.createObjectURL(file)
         
-        // Dispose old texture
-        if (this.videoTexture) {
-            this.videoTexture.dispose()
-        }
+        // Store reference to old video for cleanup
+        const oldVideo = this.video
+        const oldTexture = this.videoTexture
         
         if (isVideo) {
             // Create new video element
@@ -480,14 +479,15 @@ export default class Sketch {
                 this.videoHeight = newVideo.videoHeight
                 this.videoAspectRatio = this.videoWidth / this.videoHeight
                 
-                // Replace video element
-                if (this.video) {
-                    this.video.pause()
-                    this.video.src = ''
-                }
+                // Update video reference
                 this.video = newVideo
                 this.currentMediaElement = newVideo
                 this.isCustomMedia = true
+                
+                // Dispose old texture AFTER new video is ready
+                if (oldTexture) {
+                    oldTexture.dispose()
+                }
                 
                 // Create new texture
                 this.videoTexture = new THREE.VideoTexture(this.video)
@@ -497,6 +497,13 @@ export default class Sketch {
                 
                 // Update material texture reference
                 this.updateMaterialTexture()
+                
+                // Clean up old video AFTER everything is updated
+                if (oldVideo) {
+                    oldVideo.pause()
+                    oldVideo.src = ''
+                    oldVideo.load()
+                }
                 
                 // Auto-play the new video
                 this.video.play().catch(err => console.error('Failed to play video:', err))
@@ -514,13 +521,14 @@ export default class Sketch {
                 this.videoHeight = newImage.height
                 this.videoAspectRatio = this.videoWidth / this.videoHeight
                 
-                // Pause current video if any
-                if (this.video) {
-                    this.video.pause()
-                }
-                
+                // Update references
                 this.currentMediaElement = newImage
                 this.isCustomMedia = true
+                
+                // Dispose old texture AFTER new image is ready
+                if (oldTexture) {
+                    oldTexture.dispose()
+                }
                 
                 // Create new texture
                 this.videoTexture = new THREE.Texture(newImage)
@@ -531,6 +539,13 @@ export default class Sketch {
                 
                 // Update material texture reference
                 this.updateMaterialTexture()
+                
+                // Clean up old video AFTER everything is updated
+                if (oldVideo) {
+                    oldVideo.pause()
+                    oldVideo.src = ''
+                    oldVideo.load()
+                }
                 
                 console.log(`Custom image loaded: ${this.videoWidth}x${this.videoHeight}`)
             }
@@ -558,17 +573,10 @@ export default class Sketch {
             this.currentMediaUrl = null
         }
         
-        // Dispose current texture
-        if (this.videoTexture) {
-            this.videoTexture.dispose()
-        }
+        // Store reference to old video for cleanup
+        const oldVideo = this.video
         
-        // Reset to default video
-        if (this.video) {
-            this.video.pause()
-            this.video.src = ''
-        }
-        
+        // Create new video element FIRST
         this.video = document.createElement('video')
         this.video.src = this.defaults.videoUrl
         this.video.crossOrigin = 'anonymous'
@@ -581,26 +589,33 @@ export default class Sketch {
             this.videoHeight = this.video.videoHeight
             this.videoAspectRatio = this.videoWidth / this.videoHeight
             
+            // Dispose old texture AFTER new video is ready
+            if (this.videoTexture) {
+                this.videoTexture.dispose()
+            }
+            
             // Create new texture
             this.videoTexture = new THREE.VideoTexture(this.video)
             this.videoTexture.minFilter = THREE.LinearFilter
             this.videoTexture.magFilter = THREE.LinearFilter
             this.videoTexture.format = THREE.RGBAFormat
             
-            // Update material uniforms
-            this.material.uniforms.uBrightnessPower.value = this.params.brightnessPower
-            this.material.uniforms.uRandomNoise.value = this.params.randomNoise
-            this.params.palette.forEach((color, i) => {
-                this.material.uniforms[`uColor${i + 1}`].value.set(color)
-            })
-            
-            // Recreate instanced mesh
+            // Recreate instanced mesh with new texture - this updates everything instantly
             this.scene.remove(this.instancedMesh)
             this.geometry.dispose()
             this.addObjects()
             
+            // Clean up old video AFTER everything is updated
+            if (oldVideo) {
+                oldVideo.pause()
+                oldVideo.src = ''
+                oldVideo.load()
+            }
+            
             // Auto-play
             this.video.play().catch(err => console.error('Failed to play video:', err))
+            
+            console.log(`Reset to default video: ${this.videoWidth}x${this.videoHeight}`)
         })
         
         this.isCustomMedia = false
