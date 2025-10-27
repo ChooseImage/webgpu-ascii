@@ -83,7 +83,7 @@ export default class Sketch {
             this.video = document.createElement('video')
             this.video.src = new URL('./2u.mp4', import.meta.url).href
             this.video.loop = true
-            this.video.muted = true
+            this.video.muted = false
             this.video.playsInline = true
             
             // Create video texture
@@ -101,13 +101,24 @@ export default class Sketch {
                 resolve()
             })
             
-            // Start playing the video
+            // Try to start playing the video with sound
             this.video.play().catch(err => {
-                console.log('Video autoplay failed, click to start:', err)
-                // Add click listener to start video if autoplay fails
-                document.addEventListener('click', () => {
-                    this.video.play()
-                }, { once: true })
+                console.log('Video autoplay with sound failed, click anywhere to start with audio:', err)
+                // Create a visual prompt for user interaction
+                const prompt = document.createElement('div')
+                prompt.style.cssText = 'position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.8); color: white; padding: 20px; border-radius: 8px; font-family: Arial; z-index: 1000; cursor: pointer;'
+                prompt.innerHTML = '<h3>Click to start video with audio</h3>'
+                document.body.appendChild(prompt)
+                
+                // Add click listener to start video with audio
+                const startVideo = () => {
+                    this.video.play().then(() => {
+                        prompt.remove()
+                    }).catch(e => console.error('Failed to play video:', e))
+                }
+                
+                prompt.addEventListener('click', startVideo)
+                document.addEventListener('click', startVideo, { once: true })
             })
         })
     }
@@ -173,7 +184,7 @@ export default class Sketch {
         // Instancing parameters - match video aspect ratio
         // Keep height fixed at 50 rows, adjust width based on aspect ratio
         let aspectRatio = this.videoAspectRatio || 1
-        let baseResolution = 50
+        let baseResolution = 40
         let rows = baseResolution
         let columns = Math.round(baseResolution * aspectRatio)
         let instances = rows * columns
