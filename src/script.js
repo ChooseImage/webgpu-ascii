@@ -14,14 +14,29 @@ export default class Sketch {
             return
         }
 
-        // Parameters
-        this.params = {
+        // Default parameters
+        this.defaults = {
             brightnessPower: 1.2,
             randomNoise: 0.02,
             palette: ['#8c1dff', '#f223ff', '#ff2976', '#ff901f', '#ffd318'],
             columns: 40,
-            rows: 40
+            rows: 40,
+            videoUrl: 'https://static-gstudio.gliacloud.com/10903/files/ce9c969b91a7875b8bf57fbeb4374e728cd96e25.mp4'
         }
+        
+        // Parameters
+        this.params = {
+            brightnessPower: this.defaults.brightnessPower,
+            randomNoise: this.defaults.randomNoise,
+            palette: [...this.defaults.palette],
+            columns: this.defaults.columns,
+            rows: this.defaults.rows
+        }
+        
+        // Track current media source
+        this.currentMediaUrl = null
+        this.currentMediaElement = null
+        this.isCustomMedia = false
         
         // Canvas
         this.container = document.querySelector('canvas.webgpu')
@@ -274,12 +289,30 @@ export default class Sketch {
     createGUI() {
         const gui = document.createElement('div')
         gui.className = 'brutalist-gui'
+        
+        // Create hidden file input
+        const fileInput = document.createElement('input')
+        fileInput.type = 'file'
+        fileInput.accept = 'image/*,video/*'
+        fileInput.style.display = 'none'
+        fileInput.id = 'mediaUpload'
+        document.body.appendChild(fileInput)
+        
         gui.innerHTML = `
             <div class="gui-header">CONTROLS</div>
             
             <div class="gui-section">
                 <label class="gui-label">AUDIO</label>
                 <button class="gui-button" id="audioToggle">ON</button>
+            </div>
+            
+            <div class="gui-section">
+                <label class="gui-label">UPLOAD MEDIA</label>
+                <button class="gui-button" id="uploadButton">CHOOSE FILE</button>
+            </div>
+            
+            <div class="gui-section">
+                <button class="gui-button" id="resetButton">RESET ALL</button>
             </div>
             
             <div class="gui-section">
@@ -378,6 +411,222 @@ export default class Sketch {
             rowsValue.textContent = this.params.rows
             updateResolution()
         })
+        
+        // Upload button
+        const uploadButton = document.getElementById('uploadButton')
+        uploadButton.addEventListener('click', (e) => {
+            e.stopPropagation()
+            fileInput.click()
+        })
+        
+        // File input handler
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0]
+            if (!file) return
+            
+            // Validate file size (100MB limit)
+            const maxSize = 100 * 1024 * 1024 // 100MB in bytes
+            if (file.size > maxSize) {
+                alert(`File size (${(file.size / 1024 / 1024).toFixed(2)}MB) exceeds 100MB limit`)
+                fileInput.value = '' // Reset input
+                return
+            }
+            
+            this.loadCustomMedia(file)
+        })
+        
+        // Reset button
+        const resetButton = document.getElementById('resetButton')
+        resetButton.addEventListener('click', (e) => {
+            e.stopPropagation()
+            this.resetToDefaults()
+        })
+    }
+    
+    loadCustomMedia(file) {
+        const isVideo = file.type.startsWith('video/')
+        const isImage = file.type.startsWith('image/')
+        
+        if (!isVideo && !isImage) {
+            alert('Please upload a valid image or video file')
+            return
+        }
+        
+        // Clean up previous custom media
+        if (this.currentMediaUrl) {
+            URL.revokeObjectURL(this.currentMediaUrl)
+        }
+        
+        // Create object URL
+        this.currentMediaUrl = URL.createObjectURL(file)
+        
+        // Dispose old texture
+        if (this.videoTexture) {
+            this.videoTexture.dispose()
+        }
+        
+        if (isVideo) {
+            // Create new video element
+            const newVideo = document.createElement('video')
+            newVideo.src = this.currentMediaUrl
+            newVideo.crossOrigin = 'anonymous'
+            newVideo.loop = true
+            newVideo.muted = this.video ? this.video.muted : false
+            newVideo.playsInline = true
+            
+            newVideo.addEventListener('loadedmetadata', () => {
+                // Update dimensions
+                this.videoWidth = newVideo.videoWidth
+                this.videoHeight = newVideo.videoHeight
+                this.videoAspectRatio = this.videoWidth / this.videoHeight
+                
+                // Replace video element
+                if (this.video) {
+                    this.video.pause()
+                    this.video.src = ''
+                }
+                this.video = newVideo
+                this.currentMediaElement = newVideo
+                this.isCustomMedia = true
+                
+                // Create new texture
+                this.videoTexture = new THREE.VideoTexture(this.video)
+                this.videoTexture.minFilter = THREE.LinearFilter
+                this.videoTexture.magFilter = THREE.LinearFilter
+                this.videoTexture.format = THREE.RGBAFormat
+                
+                // Update material texture reference
+                this.updateMaterialTexture()
+                
+                // Auto-play the new video
+                this.video.play().catch(err => console.error('Failed to play video:', err))
+                
+                console.log(`Custom video loaded: ${this.videoWidth}x${this.videoHeight}`)
+            })
+        } else {
+            // Create new image element
+            const newImage = new Image()
+            newImage.src = this.currentMediaUrl
+            
+            newImage.onload = () => {
+                // Update dimensions
+                this.videoWidth = newImage.width
+                this.videoHeight = newImage.height
+                this.videoAspectRatio = this.videoWidth / this.videoHeight
+                
+                // Pause current video if any
+                if (this.video) {
+                    this.video.pause()
+                }
+                
+                this.currentMediaElement = newImage
+                this.isCustomMedia = true
+                
+                // Create new texture
+                this.videoTexture = new THREE.Texture(newImage)
+                this.videoTexture.minFilter = THREE.LinearFilter
+                this.videoTexture.magFilter = THREE.LinearFilter
+                this.videoTexture.format = THREE.RGBAFormat
+                this.videoTexture.needsUpdate = true
+                
+                // Update material texture reference
+                this.updateMaterialTexture()
+                
+                console.log(`Custom image loaded: ${this.videoWidth}x${this.videoHeight}`)
+            }
+        }
+    }
+    
+    updateMaterialTexture() {
+        // Recreate instanced mesh with new aspect ratio
+        this.scene.remove(this.instancedMesh)
+        this.geometry.dispose()
+        this.addObjects()
+    }
+    
+    resetToDefaults() {
+        // Reset parameters
+        this.params.brightnessPower = this.defaults.brightnessPower
+        this.params.randomNoise = this.defaults.randomNoise
+        this.params.palette = [...this.defaults.palette]
+        this.params.columns = this.defaults.columns
+        this.params.rows = this.defaults.rows
+        
+        // Clean up custom media
+        if (this.currentMediaUrl) {
+            URL.revokeObjectURL(this.currentMediaUrl)
+            this.currentMediaUrl = null
+        }
+        
+        // Dispose current texture
+        if (this.videoTexture) {
+            this.videoTexture.dispose()
+        }
+        
+        // Reset to default video
+        if (this.video) {
+            this.video.pause()
+            this.video.src = ''
+        }
+        
+        this.video = document.createElement('video')
+        this.video.src = this.defaults.videoUrl
+        this.video.crossOrigin = 'anonymous'
+        this.video.loop = true
+        this.video.muted = false
+        this.video.playsInline = true
+        
+        this.video.addEventListener('loadedmetadata', () => {
+            this.videoWidth = this.video.videoWidth
+            this.videoHeight = this.video.videoHeight
+            this.videoAspectRatio = this.videoWidth / this.videoHeight
+            
+            // Create new texture
+            this.videoTexture = new THREE.VideoTexture(this.video)
+            this.videoTexture.minFilter = THREE.LinearFilter
+            this.videoTexture.magFilter = THREE.LinearFilter
+            this.videoTexture.format = THREE.RGBAFormat
+            
+            // Update material uniforms
+            this.material.uniforms.uBrightnessPower.value = this.params.brightnessPower
+            this.material.uniforms.uRandomNoise.value = this.params.randomNoise
+            this.params.palette.forEach((color, i) => {
+                this.material.uniforms[`uColor${i + 1}`].value.set(color)
+            })
+            
+            // Recreate instanced mesh
+            this.scene.remove(this.instancedMesh)
+            this.geometry.dispose()
+            this.addObjects()
+            
+            // Auto-play
+            this.video.play().catch(err => console.error('Failed to play video:', err))
+        })
+        
+        this.isCustomMedia = false
+        this.currentMediaElement = null
+        
+        // Update GUI controls
+        document.getElementById('brightnessPower').value = this.params.brightnessPower
+        document.getElementById('brightnessPowerValue').textContent = this.params.brightnessPower.toFixed(2)
+        document.getElementById('randomNoise').value = this.params.randomNoise
+        document.getElementById('randomNoiseValue').textContent = this.params.randomNoise.toFixed(3)
+        document.getElementById('columns').value = this.params.columns
+        document.getElementById('columnsValue').textContent = this.params.columns
+        document.getElementById('rows').value = this.params.rows
+        document.getElementById('rowsValue').textContent = this.params.rows
+        document.getElementById('audioToggle').textContent = 'ON'
+        
+        // Update color inputs
+        this.params.palette.forEach((color, i) => {
+            document.getElementById(`color${i}`).value = color
+        })
+        
+        // Reset file input
+        const fileInput = document.getElementById('mediaUpload')
+        if (fileInput) fileInput.value = ''
+        
+        console.log('Reset to defaults')
     }
     
     render() {
