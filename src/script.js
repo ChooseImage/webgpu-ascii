@@ -82,7 +82,8 @@ export default class Sketch {
         return new Promise((resolve) => {
             // Create video element
             this.video = document.createElement('video')
-            this.video.src = new URL('./2u.mp4', import.meta.url).href
+            this.video.src = 'https://static-gstudio.gliacloud.com/10903/files/ce9c969b91a7875b8bf57fbeb4374e728cd96e25.mp4'
+            this.video.crossOrigin = 'anonymous'
             this.video.loop = true
             this.video.muted = false // Audio on by default
             this.video.playsInline = true
