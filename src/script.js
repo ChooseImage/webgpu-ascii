@@ -255,24 +255,43 @@ export default class Sketch {
         this.colors = new Float32Array(instances * 3)
         let uv = new Float32Array(instances * 2)
         let random = new Float32Array(instances)
-        this.instancedMesh = new THREE.InstancedMesh(this.geometry, this.material, instances)
-
-        for(let i = 0; i < columns; i++) {
-            for(let j = 0; j < rows; j++) {
-                let index = (i * rows) + j
-                uv[index * 2] = i / (columns - 1)
-                random[index] = Math.random() 
-                uv[index * 2 + 1] = j / (rows - 1)
-                this.positions[index * 3] = i * size - size * (columns - 1)/2
-                this.positions[index * 3 + 1] = j * size - size * (rows - 1)/2
-                this.positions[index * 3 + 2] = 0
-                let m = new THREE.Matrix4()
-                m.setPosition(this.positions[index * 3], this.positions[index * 3 + 1], this.positions[index * 3 + 2])
-                this.instancedMesh.setMatrixAt(index, m)
-                index++
+        
+        // Create array of 8 planes
+        const numPlanes = 8
+        const zSpacing = size * 10 // 10 times the plane height
+        this.instancedMeshes = []
+        
+        for(let planeIndex = 0; planeIndex < numPlanes; planeIndex++) {
+            const instancedMesh = new THREE.InstancedMesh(this.geometry, this.material, instances)
+            const zPosition = planeIndex * zSpacing
+            
+            for(let i = 0; i < columns; i++) {
+                for(let j = 0; j < rows; j++) {
+                    let index = (i * rows) + j
+                    
+                    // Only set UV and random once (same for all planes)
+                    if(planeIndex === 0) {
+                        uv[index * 2] = i / (columns - 1)
+                        random[index] = Math.random() 
+                        uv[index * 2 + 1] = j / (rows - 1)
+                    }
+                    
+                    this.positions[index * 3] = i * size - size * (columns - 1)/2
+                    this.positions[index * 3 + 1] = j * size - size * (rows - 1)/2
+                    this.positions[index * 3 + 2] = zPosition
+                    
+                    let m = new THREE.Matrix4()
+                    m.setPosition(this.positions[index * 3], this.positions[index * 3 + 1], this.positions[index * 3 + 2])
+                    instancedMesh.setMatrixAt(index, m)
+                }
             }
+            
+            instancedMesh.instanceMatrix.needsUpdate = true
+            this.instancedMeshes.push(instancedMesh)
+            this.scene.add(instancedMesh)
         }
-        this.instancedMesh.instanceMatrix.needsUpdate = true
+        
+        // Set attributes once (shared across all planes)
         this.geometry.setAttribute('aPixelUV', new THREE.InstancedBufferAttribute(uv, 2))
         this.geometry.setAttribute('aRandom', new THREE.InstancedBufferAttribute(random, 1))
         
@@ -282,8 +301,6 @@ export default class Sketch {
         for(let i = 0; i < count; i++) {
             randoms[i] = Math.random()
         }
-
-        this.scene.add(this.instancedMesh)
     }
     
     createGUI() {
@@ -402,7 +419,11 @@ export default class Sketch {
         const updateResolution = () => {
             clearTimeout(resolutionTimeout)
             resolutionTimeout = setTimeout(() => {
-                this.scene.remove(this.instancedMesh)
+                if (this.instancedMeshes) {
+                    this.instancedMeshes.forEach(mesh => {
+                        this.scene.remove(mesh)
+                    })
+                }
                 this.geometry.dispose()
                 this.addObjects()
             }, 300)
@@ -565,8 +586,12 @@ export default class Sketch {
     }
     
     updateMaterialTexture() {
-        // Recreate instanced mesh with new aspect ratio
-        this.scene.remove(this.instancedMesh)
+        // Recreate instanced meshes with new aspect ratio
+        if (this.instancedMeshes) {
+            this.instancedMeshes.forEach(mesh => {
+                this.scene.remove(mesh)
+            })
+        }
         this.geometry.dispose()
         this.addObjects()
     }
@@ -612,8 +637,12 @@ export default class Sketch {
             this.videoTexture.magFilter = THREE.LinearFilter
             this.videoTexture.format = THREE.RGBAFormat
             
-            // Recreate instanced mesh with new texture - this updates everything instantly
-            this.scene.remove(this.instancedMesh)
+            // Recreate instanced meshes with new texture - this updates everything instantly
+            if (this.instancedMeshes) {
+                this.instancedMeshes.forEach(mesh => {
+                    this.scene.remove(mesh)
+                })
+            }
             this.geometry.dispose()
             this.addObjects()
             
