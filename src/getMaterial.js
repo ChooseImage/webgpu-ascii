@@ -17,7 +17,7 @@ export default function getMaterial({ asciiTexture, length, videoTexture, params
     let material = new THREE.NodeMaterial({
         wireframe: true,
     });
-
+    material.transparent = true;
     const uColor1 = uniform(color(params.palette[0]))
     const uColor2 = uniform(color(params.palette[1]))
     const uColor3 = uniform(color(params.palette[2]))
