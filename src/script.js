@@ -51,6 +51,13 @@ export default class Sketch {
         // Clock
         this.clock = new THREE.Clock()
 
+        // Frame buffer system for time-offset video sampling
+        this.frameBuffers = [] // 8 canvases to store frame history
+        this.frameTextures = [] // 8 CanvasTextures for each plane
+        this.currentBufferIndex = 0
+        this.lastCaptureTime = 0
+        this.captureInterval = 0.01 // 100ms in seconds
+
         // this.createASCIITexture()
         
         // Initialize
@@ -94,6 +101,7 @@ export default class Sketch {
         this.setupCamera()
         await this.setupRenderer()
         await this.setupVideo()
+        this.setupFrameBuffers()
         this.addObjects()
         this.setupControls()
         this.setupResize()
@@ -131,6 +139,48 @@ export default class Sketch {
             // Create audio toggle button
             this.createAudioToggle()
         })
+    }
+    
+    setupFrameBuffers() {
+        // Create 8 canvases and textures for frame history
+        const numBuffers = 8
+        
+        for (let i = 0; i < numBuffers; i++) {
+            // Create canvas for this buffer
+            const canvas = document.createElement('canvas')
+            canvas.width = this.videoWidth
+            canvas.height = this.videoHeight
+            
+            // Initialize 2D context immediately
+            const ctx = canvas.getContext('2d')
+            // Fill with black initially
+            ctx.fillStyle = 'black'
+            ctx.fillRect(0, 0, canvas.width, canvas.height)
+            
+            this.frameBuffers.push(canvas)
+            
+            // Create Texture from this canvas (not CanvasTexture for WebGPU compatibility)
+            const texture = new THREE.Texture(canvas)
+            texture.minFilter = THREE.LinearFilter
+            texture.magFilter = THREE.LinearFilter
+            texture.format = THREE.RGBAFormat
+            texture.needsUpdate = true
+            this.frameTextures.push(texture)
+        }
+        
+        console.log(`Frame buffers initialized: ${numBuffers} buffers at ${this.videoWidth}x${this.videoHeight}`)
+    }
+    
+    captureVideoFrame(bufferIndex) {
+        // Capture current video frame to the specified buffer canvas
+        const canvas = this.frameBuffers[bufferIndex]
+        const ctx = canvas.getContext('2d')
+        
+        // Draw current video frame to canvas
+        ctx.drawImage(this.video, 0, 0, canvas.width, canvas.height)
+        
+        // Mark texture as needing update
+        this.frameTextures[bufferIndex].needsUpdate = true
     }
     
     createAudioToggle() {
@@ -189,18 +239,6 @@ export default class Sketch {
     }
     
     addObjects() {
-        // Material
-        this.material = new MeshBasicNodeMaterial({
-            color: 0x000000,
-            wireframe: true
-        })
-        this.material = getMaterial({
-            asciiTexture: this.createASCIITexture(),
-            length: this.length,
-            videoTexture: this.videoTexture,
-            params: this.params
-        })
-        
         // Instancing parameters - match video aspect ratio
         let aspectRatio = this.videoAspectRatio || 1
         let rows = this.params.rows
@@ -216,13 +254,23 @@ export default class Sketch {
         let uv = new Float32Array(instances * 2)
         let random = new Float32Array(instances)
         
-        // Create array of 8 planes
+        // Create array of 8 planes with individual textures
         const numPlanes = 8
         const zSpacing = size * 10 // 10 times the plane height
         this.instancedMeshes = []
+        this.materials = [] // Store materials for parameter updates
         
         for(let planeIndex = 0; planeIndex < numPlanes; planeIndex++) {
-            const instancedMesh = new THREE.InstancedMesh(this.geometry, this.material, instances)
+            // Each plane gets its own material with its corresponding frame buffer texture
+            const material = getMaterial({
+                asciiTexture: this.createASCIITexture(),
+                length: this.length,
+                videoTexture: this.frameTextures[planeIndex],
+                params: this.params
+            })
+            this.materials.push(material)
+            
+            const instancedMesh = new THREE.InstancedMesh(this.geometry, material, instances)
             const zPosition = planeIndex * zSpacing
             
             for(let i = 0; i < columns; i++) {
@@ -261,6 +309,9 @@ export default class Sketch {
         for(let i = 0; i < count; i++) {
             randoms[i] = Math.random()
         }
+        
+        // Store reference to first material for GUI updates
+        this.material = this.materials[0]
     }
     
     createGUI() {
@@ -382,7 +433,12 @@ export default class Sketch {
         brightnessPower.addEventListener('input', (e) => {
             this.params.brightnessPower = parseFloat(e.target.value)
             brightnessPowerValue.textContent = this.params.brightnessPower.toFixed(2)
-            this.material.uniforms.uBrightnessPower.value = this.params.brightnessPower
+            // Update all materials
+            if (this.materials) {
+                this.materials.forEach(material => {
+                    material.uniforms.uBrightnessPower.value = this.params.brightnessPower
+                })
+            }
         })
         
         // Random noise
@@ -391,7 +447,12 @@ export default class Sketch {
         randomNoise.addEventListener('input', (e) => {
             this.params.randomNoise = parseFloat(e.target.value)
             randomNoiseValue.textContent = this.params.randomNoise.toFixed(3)
-            this.material.uniforms.uRandomNoise.value = this.params.randomNoise
+            // Update all materials
+            if (this.materials) {
+                this.materials.forEach(material => {
+                    material.uniforms.uRandomNoise.value = this.params.randomNoise
+                })
+            }
         })
         
         // Color palette
@@ -399,7 +460,12 @@ export default class Sketch {
             const colorInput = document.getElementById(`color${i}`)
             colorInput.addEventListener('input', (e) => {
                 this.params.palette[i] = e.target.value
-                this.material.uniforms[`uColor${i + 1}`].value.set(e.target.value)
+                // Update all materials
+                if (this.materials) {
+                    this.materials.forEach(material => {
+                        material.uniforms[`uColor${i + 1}`].value.set(e.target.value)
+                    })
+                }
             })
         })
         
@@ -579,7 +645,14 @@ export default class Sketch {
     }
     
     updateMaterialTexture() {
-        // Recreate instanced meshes with new aspect ratio
+        // Recreate frame buffers with new dimensions
+        this.frameBuffers = []
+        this.frameTextures = []
+        this.currentBufferIndex = 0
+        this.lastCaptureTime = 0
+        this.setupFrameBuffers()
+        
+        // Recreate instanced meshes with new aspect ratio and textures
         if (this.instancedMeshes) {
             this.instancedMeshes.forEach(mesh => {
                 this.scene.remove(mesh)
@@ -629,6 +702,13 @@ export default class Sketch {
             this.videoTexture.minFilter = THREE.LinearFilter
             this.videoTexture.magFilter = THREE.LinearFilter
             this.videoTexture.format = THREE.RGBAFormat
+            
+            // Recreate frame buffers with new dimensions
+            this.frameBuffers = []
+            this.frameTextures = []
+            this.currentBufferIndex = 0
+            this.lastCaptureTime = 0
+            this.setupFrameBuffers()
             
             // Recreate instanced meshes with new texture - this updates everything instantly
             if (this.instancedMeshes) {
@@ -684,6 +764,13 @@ export default class Sketch {
     
     render() {
         const elapsedTime = this.clock.getElapsedTime()
+        
+        // Capture video frame to buffer at 100ms intervals
+        if (elapsedTime - this.lastCaptureTime >= this.captureInterval) {
+            this.captureVideoFrame(this.currentBufferIndex)
+            this.currentBufferIndex = (this.currentBufferIndex + 1) % 8
+            this.lastCaptureTime = elapsedTime
+        }
         
         // Update controls
         this.controls.update()
