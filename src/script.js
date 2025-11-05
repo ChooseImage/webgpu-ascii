@@ -128,26 +128,8 @@ export default class Sketch {
                 resolve()
             })
             
-            // Create click-to-play prompt
-            this.createPlayPrompt()
-            
             // Create audio toggle button
             this.createAudioToggle()
-        })
-    }
-    
-    createPlayPrompt() {
-        this.playPrompt = document.createElement('div')
-        this.playPrompt.style.cssText = 'position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.8); color: white; padding: 30px 40px; border-radius: 12px; font-family: Arial; z-index: 1000; cursor: pointer; font-size: 24px; transition: background 0.3s;'
-        this.playPrompt.innerHTML = '▶ Click to Play'
-        document.body.appendChild(this.playPrompt)
-        
-        // Hover effect
-        this.playPrompt.addEventListener('mouseenter', () => {
-            this.playPrompt.style.background = 'rgba(0,0,0,0.95)'
-        })
-        this.playPrompt.addEventListener('mouseleave', () => {
-            this.playPrompt.style.background = 'rgba(0,0,0,0.8)'
         })
     }
     
@@ -156,30 +138,8 @@ export default class Sketch {
     }
     
     setupPlayPauseControl() {
-        let hasStarted = false
-        
-        document.body.addEventListener('click', (e) => {
-            // Ignore clicks on the GUI panel
-            if (e.target.closest('.brutalist-gui')) return
-            
-            if (!hasStarted) {
-                // First click - start playing
-                this.video.play().then(() => {
-                    this.playPrompt.remove()
-                    hasStarted = true
-                    console.log('Video playing with audio')
-                }).catch(err => {
-                    console.error('Failed to play video:', err)
-                })
-            } else {
-                // Subsequent clicks - toggle play/pause
-                if (this.video.paused) {
-                    this.video.play()
-                } else {
-                    this.video.pause()
-                }
-            }
-        })
+        // Play/pause control is now handled by the dedicated button in the GUI
+        this.hasStarted = false
     }
     
     setupCamera() {
@@ -323,6 +283,11 @@ export default class Sketch {
             
             <div class="gui-content">
             <div class="gui-section">
+                <label class="gui-label">PLAY/PAUSE</label>
+                <button class="gui-button" id="playPauseButton">▶ PLAY</button>
+            </div>
+            
+            <div class="gui-section">
                 <label class="gui-label">AUDIO</label>
                 <button class="gui-button" id="audioToggle">ON</button>
             </div>
@@ -377,6 +342,30 @@ export default class Sketch {
         guiHeader.addEventListener('click', (e) => {
             e.stopPropagation()
             gui.classList.toggle('gui-collapsed')
+        })
+        
+        // Play/Pause button
+        const playPauseButton = document.getElementById('playPauseButton')
+        
+        // Store reference to button for updates from other methods
+        this.playPauseButton = playPauseButton
+        
+        playPauseButton.addEventListener('click', (e) => {
+            e.stopPropagation()
+            
+            // Toggle play/pause
+            if (this.video.paused) {
+                this.video.play().then(() => {
+                    playPauseButton.textContent = '⏸ PAUSE'
+                    console.log('Video playing')
+                }).catch(err => {
+                    console.error('Failed to play video:', err)
+                })
+            } else {
+                this.video.pause()
+                playPauseButton.textContent = '▶ PLAY'
+                console.log('Video paused')
+            }
         })
         
         // Audio toggle
@@ -538,8 +527,12 @@ export default class Sketch {
                     oldVideo.load()
                 }
                 
-                // Auto-play the new video
-                this.video.play().catch(err => console.error('Failed to play video:', err))
+                // Auto-play the new video and update button
+                this.video.play().then(() => {
+                    if (this.playPauseButton) {
+                        this.playPauseButton.textContent = '⏸ PAUSE'
+                    }
+                }).catch(err => console.error('Failed to play video:', err))
                 
                 console.log(`Custom video loaded: ${this.videoWidth}x${this.videoHeight}`)
             })
@@ -653,8 +646,12 @@ export default class Sketch {
                 oldVideo.load()
             }
             
-            // Auto-play
-            this.video.play().catch(err => console.error('Failed to play video:', err))
+            // Auto-play and update button
+            this.video.play().then(() => {
+                if (this.playPauseButton) {
+                    this.playPauseButton.textContent = '⏸ PAUSE'
+                }
+            }).catch(err => console.error('Failed to play video:', err))
             
             console.log(`Reset to default video: ${this.videoWidth}x${this.videoHeight}`)
         })
