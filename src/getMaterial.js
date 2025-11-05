@@ -42,7 +42,8 @@ export default function getMaterial({ asciiTexture, length, videoTexture, params
         finalColor = mix(finalColor, uColor4, step(0.6, brightness))
         finalColor = mix(finalColor, uColor5, step(0.8, brightness))
 
-        return asciiCode.mul(finalColor)
+        return vec4(finalColor.rgb, asciiCode.r)
+
         //return vec4(attribute('aPixelUV').x, attribute('aPixelUV').y, 0.0, 1.0)
     })
 
