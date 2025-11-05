@@ -149,7 +149,7 @@ export default class Sketch {
             0.1,
             100
         )
-        this.camera.position.set(0, 0, 3.8)
+        this.camera.position.set(0, 0, 8)
         this.scene.add(this.camera)
     }
     
