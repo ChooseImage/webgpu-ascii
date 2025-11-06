@@ -56,7 +56,7 @@ export default class Sketch {
         this.frameTextures = [] // 8 CanvasTextures for each plane
         this.currentBufferIndex = 0
         this.lastCaptureTime = 0
-        this.captureInterval = 0.01 // 100ms in seconds
+        this.captureInterval = 0.005 // 100ms in seconds
 
         // this.createASCIITexture()
         
